@@ -1,0 +1,17 @@
+{
+  "canisters": {
+    "activity_backend": {
+      "candid": "src/activity_backend/activity_backend.did",
+      "package": "activity_backend",
+      "type": "rust"
+    }
+  },
+  "defaults": {
+    "build": {
+      "args": "",
+      "packtool": ""
+    }
+  },
+  "output_env_file": ".env",
+  "version": 1
+}
