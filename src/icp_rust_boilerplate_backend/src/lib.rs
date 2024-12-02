@@ -10,44 +10,37 @@ type Memory = VirtualMemory<DefaultMemoryImpl>;
 type IdCell = Cell<u64, Memory>;
 
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
-struct Transporter{
-    owner:String,
-    id:u64,
+
+struct User{
     name:String,
-    serviceemail:String,
-    phonenumber:String,
-    route:String,
-    trucknumber:String,
-    capacityweight:String,
-    created_at:u64,
+    id:u64,
+    email:String,
+    createdat:u64
 }
 
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
-struct Complain{
+struct Activity{
     id:u64,
-    complaineremail:String,
-    complain:String,
-    complainerusername:String,
+    nameofactivity:String,
+    description:String,
     created_at:u64,
     
 
 }
+
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
-struct RaiseQuestion{
+struct ActivityProgress{
     id:u64,
-    question:String,
-    usernamemail:String,
-    created_at:u64
+    activityid:u64,
+    userid:u64,
+    title:String,
+    activityprogress:String,
+    updated_at:u64,
+    
+
 }
-#[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
-struct UsersComplainAboutTransporter{
-    transportername:String,
-    complaineremail:String,
-    id:u64,
-    complain:String,
-    created_at:u64
-}
-impl Storable for Transporter {
+
+impl Storable for User {
     fn to_bytes(&self) -> Cow<[u8]> {
         Cow::Owned(Encode!(self).unwrap())
     }
@@ -57,11 +50,12 @@ impl Storable for Transporter {
     }
 }
 
-impl BoundedStorable for Transporter {
+impl BoundedStorable for User {
     const MAX_SIZE: u32 = 512;
     const IS_FIXED_SIZE: bool = false;
 }
-impl Storable for Complain {
+
+impl Storable for Activity {
     fn to_bytes(&self) -> Cow<[u8]> {
         Cow::Owned(Encode!(self).unwrap())
     }
@@ -71,12 +65,12 @@ impl Storable for Complain {
     }
 }
 
-impl BoundedStorable for Complain {
+impl BoundedStorable for Activity {
     const MAX_SIZE: u32 = 512;
     const IS_FIXED_SIZE: bool = false;
 }
 
-impl Storable for RaiseQuestion {
+impl Storable for ActivityProgress {
     fn to_bytes(&self) -> Cow<[u8]> {
         Cow::Owned(Encode!(self).unwrap())
     }
@@ -86,25 +80,12 @@ impl Storable for RaiseQuestion {
     }
 }
 
-impl BoundedStorable for RaiseQuestion {
+impl BoundedStorable for ActivityProgress {
     const MAX_SIZE: u32 = 512;
     const IS_FIXED_SIZE: bool = false;
 }
 
-impl Storable for UsersComplainAboutTransporter {
-    fn to_bytes(&self) -> Cow<[u8]> {
-        Cow::Owned(Encode!(self).unwrap())
-    }
 
-    fn from_bytes(bytes: Cow<[u8]>) -> Self {
-        Decode!(bytes.as_ref(), Self).unwrap()
-    }
-}
-
-impl BoundedStorable for UsersComplainAboutTransporter {
-    const MAX_SIZE: u32 = 512;
-    const IS_FIXED_SIZE: bool = false;
-}
 //thread
 thread_local! {
     static MEMEORY_MANAGER:RefCell<MemoryManager<DefaultMemoryImpl>>=RefCell::new(
@@ -113,121 +94,99 @@ thread_local! {
     static ID_COUNTER:RefCell<IdCell>=RefCell::new(
         IdCell::init(MEMEORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0))),0).expect("Cannot create a counter")
     );
-    static TRANSPORTER_STORAGE:RefCell<StableBTreeMap<u64,Transporter,Memory>>=RefCell::new(StableBTreeMap::init(
+    static USERS_STORAGE:RefCell<StableBTreeMap<u64,User,Memory>>=RefCell::new(StableBTreeMap::init(
         MEMEORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
     ));
-    static COMPLAIN_STORAGE:RefCell<StableBTreeMap<u64,Complain,Memory>>=RefCell::new(StableBTreeMap::init(
-        MEMEORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
+    static ACTIVITIES_STORAGE:RefCell<StableBTreeMap<u64,Activity,Memory>>=RefCell::new(StableBTreeMap::init(
+        MEMEORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(2)))
     ));
-    static QUESTION_STORAGE:RefCell<StableBTreeMap<u64,RaiseQuestion,Memory>>=RefCell::new(StableBTreeMap::init(
-        MEMEORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
-    ));
-    static USER_COMPLAIN_STORAGE:RefCell<StableBTreeMap<u64,UsersComplainAboutTransporter,Memory>>=RefCell::new(StableBTreeMap::init(
-        MEMEORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1)))
+    static ACTIVITIESPROGRESS_STORAGE:RefCell<StableBTreeMap<u64,ActivityProgress,Memory>>=RefCell::new(StableBTreeMap::init(
+        MEMEORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(3)))
     ));
 }
-
 
 #[derive(candid::CandidType,Clone,Serialize,Deserialize,Default)]
 
-struct TransporterPayload{
-    ownername:String,
-    transport_name:String,
-    serviceemail:String,
-    phonenumber:String,
-    route:String,
-    trucknumber:String,
-    capacityweight:String,
+struct UserPayload{
+    name:String,
+    email:String,
 }
+
+#[derive(candid::CandidType,Serialize,Deserialize,Default)]
+struct ActivityPayload{
+    by:u64,
+    nameofactivity:String,
+    description:String,
+
+}
+
 
 #[derive(candid::CandidType,Serialize,Deserialize,Default)]
 
 struct SearchPayload{
-    transporterid:u64,
+    activityid:u64,
 }
 
-#[derive(candid::CandidType,Serialize,Deserialize,Default)]
-struct ComplainPayload{
-    complaineremail:String,
-    complain:String,
-    complainerusername:String,
-    id:u64
 
-}
-#[derive(candid::CandidType,Serialize,Deserialize,Default)]
-struct RaiseQuestionPayload{
-    question:String,
-    usernameemail:String,
-}
-#[derive(candid::CandidType,Clone,Serialize,Deserialize,Default)]
-
-struct UpdateTransporterPayload{
-    ownername:String,
-    transport_name:String,
-    serviceemail:String,
-    phonenumber:String,
-    route:String,
-    trucknumber:String,
-    capacityweight:String,
-    truckid:u64,
-}
 #[derive(candid::CandidType,Serialize,Deserialize,Default)]
 struct DeletePayload{
-    id:u64
+    userid:u64,
+    activityid:u64
 }
-#[derive(candid::CandidType,Serialize,Deserialize,Default)]
-struct UserComplainPayload{
-    transportername:String,
-    complaineremail:String,
-    id:u64,
-    complain:String
+
+
+#[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
+struct ActivityProgressPayload{
+    
+    activityid:u64,
+    userid:u64,
+title:String,
+    activityprogress:String,
 }
+
 #[derive(candid::CandidType,Deserialize,Serialize)]
 enum Errors{
-    BusWithSameRegistrationExist{msg:String},
+    UserAlreadyFound{msg:String},
     NotFound{msg:String},
     TansporterNameAlradyEXist{msg:String},
     OnyOwner{msg:String},
     MissingCredentials{msg:String}
 }
+
+
 #[ic_cdk::update]
-fn registertransporter(payload: TransporterPayload) -> Result<Transporter, String> {
+fn register_user(payload: UserPayload) -> Result<User, String> {
     // Validate the payload to ensure that the required fields are present
-    if payload.serviceemail.is_empty()
-        ||payload.ownername.is_empty()
-        ||payload.transport_name.is_empty()
-        ||payload.phonenumber.is_empty()
-        ||payload.route.is_empty()
-        || payload.trucknumber.is_empty()
-        || payload.capacityweight.is_empty()
+    if payload.name.is_empty()
+        ||payload.email.is_empty()
     {
         return Err("All fields are required".to_string());
     }
 
     // Validate the payload to ensure that the email format is correct
-    if !payload.serviceemail.contains('@') {
+    if !payload.email.contains('@') {
         return Err("enter correct email format".to_string());
     }
 
     // Ensure email address uniqueness and ownername and also transport name
-    let email_exists:bool = TRANSPORTER_STORAGE.with(|storage| {
+    let email_exists:bool = USERS_STORAGE.with(|storage| {
         storage
             .borrow()
             .iter()
-            .any(|(_, val)| val.serviceemail == payload.serviceemail)
+            .any(|(_, val)| val.email == payload.email)
     });
     if email_exists {
         return Err("Email already exists".to_string());
     }
 
-   let ownername_exists:bool=TRANSPORTER_STORAGE.with(|storage| {
+   let name_exists:bool=USERS_STORAGE.with(|storage| {
     storage
         .borrow()
         .iter()
-        .any(|(_,val)| val.owner == payload.ownername)
+        .any(|(_,val)| val.name == payload.name)
 });
-if ownername_exists {
-    return Err("The username already exists".to_string());
+if name_exists {
+    return Err("The name already exists".to_string());
 }
     let id = ID_COUNTER
         .with(|counter| {
@@ -236,233 +195,161 @@ if ownername_exists {
         })
         .expect("Cannot increment ID counter");
 
-    let transporter = Transporter {
+    let newuser = User {
         id,
-        owner:payload.ownername,
-        name: payload.transport_name,
-        serviceemail:payload.serviceemail,
-        phonenumber: payload.phonenumber,
-        route:payload.route,
-        trucknumber:payload.trucknumber,
-        capacityweight:payload.capacityweight,
-        created_at: time(),
+        name: payload.name,
+        email:payload.email,                                    
+        createdat: time(),
        
     };
 
-    TRANSPORTER_STORAGE.with(|storage| storage.borrow_mut().insert(id, transporter.clone()));
+    USERS_STORAGE.with(|storage| storage.borrow_mut().insert(id, newuser.clone()));
 
-    Ok(transporter)
+    Ok(newuser)
 }
 
-//Function to retrieve all transporters
-#[ic_cdk::query]
-fn get_all_transporters() -> Result<Vec<Transporter>, String> {
+//add an activity
 
-    let transporters = TRANSPORTER_STORAGE.with(|storage| {
+#[ic_cdk::update]
+fn add_an_activity(payload:ActivityPayload)->Result<Activity,String>{
+
+      // Validate the payload to ensure that the required fields are present
+      if  payload.nameofactivity.is_empty()
+      || payload.description.is_empty()
+       {
+          return Err("All fields are required".to_string());
+       }
+    
+
+    //check if user is registered
+    let user =USERS_STORAGE.with(|storage| storage.borrow().get(&payload.by));
+    match user {
+        Some(_) => (),
+        None => return Err("you are not registered.".to_string()),
+    }
+
+    let id = ID_COUNTER
+        .with(|counter| {
+            let current_value = *counter.borrow().get();
+            counter.borrow_mut().set(current_value + 1)
+        })
+        .expect("Cannot increment ID counter");
+    let new_activity=Activity{
+        id,
+        nameofactivity:payload.nameofactivity,
+        description:payload.description,
+        created_at:time()    };
+
+   ACTIVITIES_STORAGE.with(|storage| storage.borrow_mut().insert(id, new_activity.clone()));
+
+    Ok(new_activity)
+}
+
+//retrive all activities
+
+#[ic_cdk::query]
+fn get_all_activities() -> Result<Vec<Activity>, String> {
+
+    let activities =ACTIVITIES_STORAGE.with(|storage| {
         storage
             .borrow()
             .iter()
             .map(|(_, trans)| trans.clone())
-            .collect::<Vec<Transporter>>()
+            .collect::<Vec<Activity>>()
     });
 
-    if  transporters.is_empty() {
-        return Err("No transporter  found.".to_string());
+    if  activities.is_empty() {
+        return Err("No activities   found.".to_string());
     }
 
     else {
-        Ok(transporters)
+        Ok(activities)
     }
-
-    // TRANSPORTER_STORAGE.with(|storage| {
-    //     let stable_btree_map = &*storage.borrow();
-    //     let records: Vec<Transporter> = stable_btree_map
-    //         .iter()
-    //         .map(|(_, record)| record.clone())
-    //         .collect();
-    //     if records.is_empty() {
-    //         Err("No transporter found.".to_string())
-    //     } else {
-    //         Ok(records)
-    //     }
-    // })
 }
 
-//function where transporter launch a complain aganist the company
-#[ic_cdk::update]
-fn transporter_launch_a_complain(payload:ComplainPayload)->Result<Complain, String>{
-
-      // Validate the payload to ensure that the required fields are present
-      if payload.complain.is_empty()
-      || payload.complaineremail.is_empty()
-      || payload.complainerusername.is_empty()
-       {
-          return Err("All fields are required".to_string());
-       }
-       // Validate the payload to ensure that the email format is correct
-    if !payload.complaineremail.contains('@') {
-        return Err("enter correct email format".to_string());
-    }
-
-    //check if transporter is registered
-    let transporter =TRANSPORTER_STORAGE.with(|storage| storage.borrow().get(&payload.id));
-    match transporter {
-        Some(_) => (),
-        None => return Err("you are not registered to acme transporters company.".to_string()),
-    }
-    // let ownstruck:bool=TRANSPORTER_STORAGE.with(|storage| {
-    //     storage
-    //         .borrow()
-    //         .iter()
-    //         .any(|(_,val)| val.owner == payload.complainerusername)
-    // });
-    // if !ownstruck {
-    //     return Err("only those that owns trucks can complain".to_string());
-    // }
-    let id = ID_COUNTER
-        .with(|counter| {
-            let current_value = *counter.borrow().get();
-            counter.borrow_mut().set(current_value + 1)
-        })
-        .expect("Cannot increment ID counter");
-    let new_coplain=Complain{
-        id,
-        complainerusername:payload.complainerusername,
-        complain:payload.complain,
-        complaineremail:payload.complaineremail,
-        created_at:time()    };
-
-    COMPLAIN_STORAGE.with(|storage| storage.borrow_mut().insert(id, new_coplain.clone()));
-
-    Ok(new_coplain)
-}
-
-//users raise a questuion about a transporter
-#[ic_cdk::update]
-fn users_raise_question(payload:RaiseQuestionPayload)->Result<RaiseQuestion,String>{
-
-
-      // Validate the payload to ensure that the required fields are present
-      if payload.usernameemail.is_empty()
-      || payload.question.is_empty()
-       {
-          return Err("All fields are required".to_string());
-       }
-       // Validate the payload to ensure that the email format is correct
-    if !payload.usernameemail.contains('@') {
-        return Err("enter correct email format".to_string());
-    }
-    let id = ID_COUNTER
-    .with(|counter| {
-        let current_value = *counter.borrow().get();
-        counter.borrow_mut().set(current_value + 1)
-    })
-    .expect("Cannot increment ID counter");
-    let new_question=RaiseQuestion{
-    id,
-    usernamemail:payload.usernameemail,
-    question:payload.question,
-    created_at:time()
-     };
-QUESTION_STORAGE.with(|storage| storage.borrow_mut().insert(id, new_question.clone()));
-
-return Ok(new_question);
-}
-
-//transporter update details of his truck
-#[ic_cdk::update]
-fn transporter_update_details(payload:UpdateTransporterPayload)->Result<Transporter,String>{
-     if payload.serviceemail.is_empty()
-        ||payload.ownername.is_empty()
-        || payload.transport_name.is_empty()
-        || payload.phonenumber.is_empty()
-        ||payload.route.is_empty()
-        ||payload.trucknumber.is_empty()
-        ||payload.capacityweight.is_empty()
-    {
-        return Err("Ensure all credentials are inserted".to_string());
-    }
-     // Validate the payload to ensure that the email format is correct
-     if !payload.serviceemail.contains('@') {
-        return Err("Invalid email format".to_string());
-    }
-
-match TRANSPORTER_STORAGE.with(|service|service.borrow().get(&payload.truckid)){
-    Some(mut trans)=>{
-                        trans.owner=payload.ownername;
-                        trans.name=payload.transport_name;
-                        trans.serviceemail=payload.serviceemail;
-                        trans.phonenumber=payload.phonenumber;
-                        trans.capacityweight=payload.capacityweight;
-                        trans.route=payload.route;
-                        trans.trucknumber=payload.trucknumber;
-                        do_insert(&trans);
-                        Ok(trans)
-                        
-    }
-    None=>Err("could not update transporter details".to_string()),
-}
-
-}
-
-//users search for a  transporter
+//get an activity
 #[ic_cdk::query]
-fn get_a_transporter(payload:SearchPayload)->Result<Transporter,String>{
-    let transporter = TRANSPORTER_STORAGE.with(|storage| storage.borrow().get(&payload.transporterid));
-    match transporter {
-        Some(transporter) => Ok(transporter),
-        None => Err("Volunteer with the provided ID does not exist.".to_string()),
+fn get_an_activity_detail(payload:SearchPayload)->Result<Activity,String>{
+    let activity =ACTIVITIES_STORAGE.with(|storage| storage.borrow().get(&payload.activityid));
+    match activity {
+        Some(act) => Ok(act),
+        None => Err("something went wrong no activity found.".to_string()),
     }
-    // TRANSPORTER_STORAGE.with(|storage|{
-    //     let transporter=storage.borrow().iter().find(|(_,user)|user.name==payload.transportername);
-    //     match transporter{
-    //         Some((_,record))=>Ok(record.clone()),
-    //         None=>Err("Not Found".to_string()),
-    //     }
-    // })
 }
-//transporter remove his truck from company
+
+
+//remove an activity
+
 #[ic_cdk::update]
-  fn remove_your_truck_from_company(payload:DeletePayload)->Result<String,String>{
- //verify  transporter is the owner
-   //check the user owns a truck
-   let transporter =TRANSPORTER_STORAGE.with(|storage| storage.borrow().get(&payload.id));
-    match transporter {
+  fn remove_an_activity(payload:DeletePayload)->Result<String,String>{
+ //verify  its the owner
+   let owner =USERS_STORAGE.with(|storage| storage.borrow().get(&payload.userid));
+    match owner {
         Some(_) => (),
-        None => return Err("you are not registered to acme transporters company.".to_string()),
+        None => return Err("must be the owert.".to_string()),
     }
-    match TRANSPORTER_STORAGE.with(|storage|storage.borrow_mut().remove(&payload.id)){
-        Some(_val)=>Ok("tou have opted out of came transporters.thank you".to_string()),
+    match ACTIVITIES_STORAGE.with(|storage|storage.borrow_mut().remove(&payload.activityid)){
+        Some(_val)=>Ok("tou have eleted an ctivity".to_string()),
         None=>Err("coulde not delete".to_string(),)
     }
   }
-    //users cpmplain about a transporter
+
+
+  //update your activiteis to show your progress
+
   #[ic_cdk::update]
-  fn users_complain(payload:UserComplainPayload)->Result<UsersComplainAboutTransporter,String>{
-    if payload.complain.is_empty()
-    ||payload.complaineremail.is_empty()
-    || payload.transportername.is_empty()
-     {
-        return Err("some fields are missing".to_string());
-     }
-     let id = ID_COUNTER
-        .with(|counter| {
-            let current_value = *counter.borrow().get();
-            counter.borrow_mut().set(current_value + 1)
-        })
-        .expect("Cannot increment ID counter");
-     let new_user_complain=UsersComplainAboutTransporter{
-        id,
-        complaineremail:payload.complaineremail,
-        transportername:payload.transportername,
-        complain:payload.complain,
-        created_at:time(),
-     };
-     USER_COMPLAIN_STORAGE.with(|storage| storage.borrow_mut().insert(id, new_user_complain.clone()));
-     return Ok(new_user_complain);
-  }
-//helper unction for updates
-fn do_insert(trans:&Transporter){
-    TRANSPORTER_STORAGE.with(|service|service.borrow_mut().insert(trans.id,trans.clone()));
+fn users_update_activities_progress(payload:ActivityProgressPayload)->Result<ActivityProgress,String>{
+     if payload.title.is_empty()
+        ||payload.activityprogress.is_empty()
+    {
+        return Err("Ensure all credentials are inserted".to_string());
+    }
+    
+
+    //validate if user is registerde
+    let user_exists:bool = USERS_STORAGE.with(|storage| {
+        storage
+            .borrow()
+            .iter()
+            .any(|(_, val)| val.id == payload.userid)
+    });
+    if !user_exists {
+        return Err("must be registered".to_string());
+    }
+    //validate if activiy exists
+
+    let activity_exists:bool = ACTIVITIES_STORAGE.with(|storage| {
+        storage
+            .borrow()
+            .iter()
+            .any(|(_, val)| val.id == payload.activityid)
+    });
+    if !activity_exists {
+        return Err("activity with given id".to_string());
+    }
+
+//create a new progress
+let id = ID_COUNTER
+.with(|counter| {
+    let current_value = *counter.borrow().get();
+    counter.borrow_mut().set(current_value + 1)
+})
+.expect("Cannot increment ID counter");
+
+let newprogress =ActivityProgress {
+id,
+activityid:payload.activityid,
+userid:payload.userid,
+title:payload.title,
+activityprogress:payload.activityprogress,
+updated_at:time() 
+
+};
+ACTIVITIESPROGRESS_STORAGE.with(|storage| storage.borrow_mut().insert(id, newprogress.clone()));
+
+Ok(newprogress)
+
 }
+
+
 ic_cdk::export_candid!();
