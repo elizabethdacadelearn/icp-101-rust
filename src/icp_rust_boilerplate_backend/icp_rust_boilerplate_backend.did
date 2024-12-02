@@ -1,0 +1,81 @@
+type Complain = record {
+  id : nat64;
+  complaineremail : text;
+  created_at : nat64;
+  complain : text;
+  complainerusername : text;
+};
+type ComplainPayload = record {
+  id : nat64;
+  complaineremail : text;
+  complain : text;
+  complainerusername : text;
+};
+type DeletePayload = record { id : nat64 };
+type RaiseQuestion = record {
+  id : nat64;
+  usernamemail : text;
+  question : text;
+  created_at : nat64;
+};
+type RaiseQuestionPayload = record { question : text; usernameemail : text };
+type Result = variant { Ok : Transporter; Err : text };
+type Result_1 = variant { Ok : vec Transporter; Err : text };
+type Result_2 = variant { Ok : text; Err : text };
+type Result_3 = variant { Ok : Complain; Err : text };
+type Result_4 = variant { Ok : UsersComplainAboutTransporter; Err : text };
+type Result_5 = variant { Ok : RaiseQuestion; Err : text };
+type SearchPayload = record { transporterid : nat64 };
+type Transporter = record {
+  id : nat64;
+  owner : text;
+  name : text;
+  created_at : nat64;
+  trucknumber : text;
+  phonenumber : text;
+  serviceemail : text;
+  capacityweight : text;
+  route : text;
+};
+type TransporterPayload = record {
+  ownername : text;
+  trucknumber : text;
+  phonenumber : text;
+  serviceemail : text;
+  capacityweight : text;
+  transport_name : text;
+  route : text;
+};
+type UpdateTransporterPayload = record {
+  truckid : nat64;
+  ownername : text;
+  trucknumber : text;
+  phonenumber : text;
+  serviceemail : text;
+  capacityweight : text;
+  transport_name : text;
+  route : text;
+};
+type UserComplainPayload = record {
+  id : nat64;
+  complaineremail : text;
+  complain : text;
+  transportername : text;
+};
+type UsersComplainAboutTransporter = record {
+  id : nat64;
+  complaineremail : text;
+  created_at : nat64;
+  complain : text;
+  transportername : text;
+};
+service : {
+  get_a_transporter : (SearchPayload) -> (Result) query;
+  get_all_transporters : () -> (Result_1) query;
+  registertransporter : (TransporterPayload) -> (Result);
+  remove_your_truck_from_company : (DeletePayload) -> (Result_2);
+  transporter_launch_a_complain : (ComplainPayload) -> (Result_3);
+  transporter_update_details : (UpdateTransporterPayload) -> (Result);
+  users_complain : (UserComplainPayload) -> (Result_4);
+  users_raise_question : (RaiseQuestionPayload) -> (Result_5);
+}
