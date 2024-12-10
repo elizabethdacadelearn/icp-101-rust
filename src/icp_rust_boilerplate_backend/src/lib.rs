@@ -29,6 +29,16 @@ struct Activity{
 }
 
 #[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
+struct GeneralActivities{
+    id:u64,
+    nameofactivity:String,
+    description:String,
+    created_at:u64,
+    
+
+}
+
+#[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
 struct ActivityProgress{
     id:u64,
     activityid:u64,
@@ -86,6 +96,22 @@ impl BoundedStorable for ActivityProgress {
 }
 
 
+impl Storable for GeneralActivities {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(Encode!(self).unwrap())
+    }
+
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        Decode!(bytes.as_ref(), Self).unwrap()
+    }
+}
+
+impl BoundedStorable for GeneralActivities {
+    const MAX_SIZE: u32 = 512;
+    const IS_FIXED_SIZE: bool = false;
+}
+
+
 //thread
 thread_local! {
     static MEMEORY_MANAGER:RefCell<MemoryManager<DefaultMemoryImpl>>=RefCell::new(
@@ -102,6 +128,9 @@ thread_local! {
     ));
     static ACTIVITIESPROGRESS_STORAGE:RefCell<StableBTreeMap<u64,ActivityProgress,Memory>>=RefCell::new(StableBTreeMap::init(
         MEMEORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(3)))
+    ));
+    static GENERALACTIVITIES_STORAGE:RefCell<StableBTreeMap<u64,GeneralActivities,Memory>>=RefCell::new(StableBTreeMap::init(
+        MEMEORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(4)))
     ));
 }
 
@@ -140,15 +169,20 @@ struct ActivityProgressPayload{
     
     activityid:u64,
     userid:u64,
-title:String,
+    title:String,
     activityprogress:String,
+}
+
+#[derive(candid::CandidType, Clone, Serialize, Deserialize, Default)]
+struct UserActivityPayload{
+    
+   username:String
 }
 
 #[derive(candid::CandidType,Deserialize,Serialize)]
 enum Errors{
     UserAlreadyFound{msg:String},
     NotFound{msg:String},
-    TansporterNameAlradyEXist{msg:String},
     OnyOwner{msg:String},
     MissingCredentials{msg:String}
 }
@@ -248,7 +282,13 @@ fn add_an_activity(payload:ActivityPayload)->Result<Activity,String>{
 //retrive all activities
 
 #[ic_cdk::query]
-fn get_all_activities() -> Result<Vec<Activity>, String> {
+fn get_all_user_activities(payload:UserActivityPayload) -> Result<Vec<Activity>, String> {
+
+      //verify username exists
+
+      if payload.username.is_empty(){
+        return Err("username is required.".to_string())
+      }
 
     let activities =ACTIVITIES_STORAGE.with(|storage| {
         storage
@@ -349,6 +389,69 @@ ACTIVITIESPROGRESS_STORAGE.with(|storage| storage.borrow_mut().insert(id, newpro
 
 Ok(newprogress)
 
+}
+
+
+//general activities
+
+
+#[ic_cdk::update]
+fn add_general_activity(payload:ActivityPayload)->Result<GeneralActivities,String>{
+
+      // Validate the payload to ensure that the required fields are present
+      if  payload.nameofactivity.is_empty()
+      || payload.description.is_empty()
+       {
+          return Err("All fields are required".to_string());
+       }
+    
+
+    //check if user is registered
+    let user =USERS_STORAGE.with(|storage| storage.borrow().get(&payload.by));
+    match user {
+        Some(_) => (),
+        None => return Err("you are not registered.".to_string()),
+    }
+
+    let id = ID_COUNTER
+        .with(|counter| {
+            let current_value = *counter.borrow().get();
+            counter.borrow_mut().set(current_value + 1)
+        })
+        .expect("Cannot increment ID counter");
+    let new_activity=GeneralActivities{
+        id,
+        nameofactivity:payload.nameofactivity,
+        description:payload.description,
+        created_at:time()    };
+
+   GENERALACTIVITIES_STORAGE.with(|storage| storage.borrow_mut().insert(id, new_activity.clone()));
+
+    Ok(new_activity)
+}
+
+//retrive all activities
+
+#[ic_cdk::query]
+fn get_all_general_activities() -> Result<Vec<GeneralActivities>, String> {
+
+     
+
+    let activities =GENERALACTIVITIES_STORAGE.with(|storage| {
+        storage
+            .borrow()
+            .iter()
+            .map(|(_, trans)| trans.clone())
+            .collect::<Vec<GeneralActivities>>()
+    });
+
+    if  activities.is_empty() {
+        return Err("No activities   found.".to_string());
+    }
+
+    else {
+        Ok(activities)
+    }
 }
 
 
